@@ -109,13 +109,14 @@
                                     </div>
                                     <div class="card-body">
                                         <h2> ยอดค่าบริการ :
-                                            <span id="charge" class="pink">charge</span> บาท
+                                            <span id="charge" class="pink"></span> บาท
                                         </h2>
                                         <form id="phoneForm" class="form-horizontal">
                                             <div class="form-group row">
                                                 <input type="hidden" id="amount" value="">
                                                 <div class="col-md-12">
-                                                    <input type="submit" value="ยืนยัน" class="btn btn-primary">
+                                                    <input id="btnSubmit" type="submit" value="ยืนยัน"
+														class="btn btn-primary">
                                                 </div>
                                             </div>
                                         </form>
@@ -128,47 +129,7 @@
             </div>
         </section>
     </div>
-
-    <script type="text/javascript">
-      function loadCustInfo(){
-        var acctNum = readCookie("authentication");
-        if(acctNum){
-          $.ajax({
-            method: "POST",
-            url: "../../src/controller.php",
-            dataType: "json",
-            data: {
-              service:"ServiceAuthentication",
-            }
-          })
-            .done(function (result) {
-              if (result.isError){
-                swal(
-                    'ผิดพลาด',
-                    result.message,
-                    'error'
-                );
-              }
-              else{
-                $("#charge").text(commaSeparateNumber(result.accPhoneCharge));
-              }
-            }).fail(function(xhr,status,error){
-              swal(
-                  'ผิดพลาด',
-                  error,
-                  'error'
-              );
-            });;
-        }
-      }
-      function commaSeparateNumber(val) {
-          while (/(\d+)(\d{3})/.test(val.toString())) {
-              val = val.toString().replace(/(\d+)(\d{3})/, '$1' + ',' + '$2');
-          }
-          return val;
-      }
-    </script>
-    <script src="../../lib/js/cookie-mgmt.js"></script>
+    
     <!-- Javascript files-->
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js"></script>
     <script src="../../lib/js/tether.min.js"></script>
@@ -177,6 +138,100 @@
     <script src="../../lib/js/jquery.validate.min.js"></script>
     <script src="../../lib/js/front.js"></script>
     <script src="../../lib/js/sweetalert2.js"></script>
+    <script src="../../lib/js/cookie-mgmt.js"></script>
+
+    <script type="text/javascript">
+    			$(document).ready(function() {
+				getBillAmount();
+			});
+			
+			function getBillAmount() {
+				var acctNum = readCookie("authentication");
+				if (acctNum) {
+					$.ajax({
+						method : "POST",
+						url : "../../src/controller.php",
+						dataType : "json",
+						data : {
+							service : "BillPaymentInq",
+							transaction : {
+								bill_type : "2"
+							}
+						}
+					}).done(function(result) {
+						if (result.isError) {
+							swal('ผิดพลาด', result.message, 'error');
+							$("#btnSubmit").attr('disabled', true);
+						} else {
+							//$("#charge").text(commaSeparateNumber(result.accWaterCharge));
+							//updateBillAmount(result.accWaterCharge);
+							updateBillAmount(result.data.billAmount);
+							//$("#charge").text(5555555);
+						}
+					}).fail(function(xhr, status, error) {
+						swal('ผิดพลาด', error, 'error');
+						$("#btnSubmit").attr('disabled', true);
+					});
+				}
+			}
+			
+			function updateBillAmount(billAmount) {
+				if (billAmount < 0) {
+					$("#btnSubmit").attr('disabled', true);
+					swal('Error', 'Invalid service charge amount: ' + billAmount, 'error');
+				} else if(billAmount == 0) {
+					$("#btnSubmit").attr('disabled', true);
+					swal('No service charge', 'Service charge amount: ' + billAmount, 'info');
+				}  else {
+					$("#btnSubmit").attr('disabled', false);
+				} 
+				$("#charge").text(commaSeparateNumber(billAmount));
+				$("#amount").val(billAmount);
+			}
+
+
+
+			function commaSeparateNumber(val) {
+				while (/(\d+)(\d{3})/.test(val.toString())) {
+					val = val.toString().replace(/(\d+)(\d{3})/, '$1' + ',' + '$2');
+				}
+				return val;
+			}
+
+			$("#phoneForm").submit(function(event) {
+				swal({title:'ชำระค่าโทรศัพท์', text:'ชำระค่าโทรศัพท์เป็นเงิน ' + $("#charge").text() + ' บาท', type:'info', showCancelButton: true})
+					.then(() => {
+						$.ajax({
+							method : "POST",
+							url : "../../src/controller.php",
+							dataType : "json",
+							data : {
+								service : "BillPayment",
+								transaction : {
+									bill_type : "2",
+									bill_amount: $("#amount").val()
+								}
+							}
+						}).done(function(result) {
+							if (result.isError) {
+								swal('ผิดพลาด', result.message, 'error')
+								.then((result) => {
+									getBillAmount();
+								});
+							} else {
+								$("#btnSubmit").attr('disabled', true);
+								$("#charge").text(commaSeparateNumber(result.data.billAmount));
+								$("#amount").val(result.data.billAmount);
+								swal('ชำระค่าโทรศัพท์เรียบร้อย', 'ยอดเงินคงเหลือ ' + result.data.accountBalance + ' บาท', 'success');
+							}
+						}).fail(function(xhr, status, error) {
+							swal('ผิดพลาด', error, 'error');
+						});
+					});
+				// To prevent event propagation
+				event.preventDefault();
+			}); 
+    </script>
 </body>
 
 </html>

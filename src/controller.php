@@ -8,7 +8,7 @@ require_once "authentication/authentication.php";
 //require_once "withdraw/Withdrawal.php";
 //require_once "deposit/DepositService.php";
 //require_once "transfer/transfer.php";
-//require_once "billpayment/billpayment.php";
+require_once "billpayment/billpayment.php";
 require_once "serviceauthentication/serviceauthentication.php";
 
 use Operation\Authentication;
@@ -21,6 +21,21 @@ $logFile = "../errorlog.txt";
 $service = $_POST["service"];
 $session = isset($_COOKIE["authentication"])?$_COOKIE["authentication"]:null;
 
+function output2JSON($outputIns){
+    $response = array();
+    if (isset($outputIns->errorMessage)){
+      $response["isError"] = true;
+      $response["message"] = $outputIns->errorMessage;
+    }
+    else{
+      $response["isError"] = false;
+      $response["data"] = array_filter((array)$outputIns,"strlen");
+    }
+    return $response;
+}
+
+
+
 try{
   if ($service == "Authentication"){
     $transaction = $_POST["transaction"];
@@ -29,6 +44,7 @@ try{
   }
   elseif($session)
   {
+	 
       if ($service == "Deposit"){
         $transaction = $_POST["transaction"];
         $deposit = new DepositService($session);
@@ -47,12 +63,14 @@ try{
       elseif ($service == "BillPayment"){
         $transaction = $_POST["transaction"];
         $billPayment = new BillPayment($session);
-        echo json_encode($billPayment->pay($transaction["bill_type"]));
+        echo json_encode(output2JSON($billPayment->pay($transaction["bill_type"])));
+		//echo json_encode($billPayment->pay($transaction["bill_type"]));
       }
       elseif ($service == "BillPaymentInq"){
         $transaction = $_POST["transaction"];
         $billPayment = new BillPayment($session);
-        echo json_encode($billPayment->getBill($transaction["bill_type"]));
+        echo json_encode(output2JSON($billPayment->getBill($transaction["bill_type"])));
+		//echo json_encode($billPayment->getBill($transaction["bill_type"]));
       }
       elseif ($service == "ServiceAuthentication"){
         $result["isError"] = true;
@@ -63,7 +81,7 @@ try{
         catch(AccountInformationException $e){
           $result["message"] = $e->getMessage();
         }
-        echo json_encode($result);
+        echo json_encode ($result);
       }
       else{
         http_response_code(501);
